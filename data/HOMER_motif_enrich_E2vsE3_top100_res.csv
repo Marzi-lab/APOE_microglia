@@ -1,0 +1,19 @@
+Rank,Motif,P-value,log P-pvalue,Percentage of Targets,Percentage of Background,STD(Bg STD),Best Match/Details,Motif File
+"1
+*",ACTGCTAGACGTCAGTACTGCTAGAGCTACGT,1e-05,-13.45,14.00%,2.93%,133.8bp (217.0bp),HuR(RRM)/Homo_sapiens-RNCMPT00136-PBM/HughesRNA(0.734)More Information | Similar Motifs Found,motif file (matrix)
+"2
+*",TGACGCATCTAGCTGACATGCTGAATGCCGTACTAGACTGATCGGTCA,1e-05,-13.44,17.00%,4.34%,92.7bp (223.5bp),HNRNPA2B1(RRM)/Homo_sapiens-RNCMPT00024-PBM/HughesRNA(0.662)More Information | Similar Motifs Found,motif file (matrix)
+"3
+*",ACGTACTGCGTACGTAGTACAGTCAGTCACTG,1e-05,-12.86,10.00%,1.48%,126.0bp (257.9bp),VDR/MA0693.2/Jaspar(0.809)More Information | Similar Motifs Found,motif file (matrix)
+"4
+*",TCAGTGACCTGATGCAACTGGTACACGTATGCAGTCATCG,1e-05,-11.88,6.00%,0.45%,54.9bp (238.0bp),POL013.1_MED-1/Jaspar(0.813)More Information | Similar Motifs Found,motif file (matrix)
+"5
+*",GACTATCGATGCGACTATCGATCGTGACATCG,1e-04,-10.16,18.00%,6.18%,142.8bp (258.2bp),Vts1p(SAM)/Saccharomyces_cerevisiae-RNCMPT00082-PBM/HughesRNA(0.844)More Information | Similar Motifs Found,motif file (matrix)
+"6
+*",GTACACTGGTACAGTCACGTAGTCGATCATGCACTGCTAGACTGGCTA,0.001,-9.057,8.00%,1.46%,120.8bp (278.0bp),ZNF460/MA1596.1/Jaspar(0.715)More Information | Similar Motifs Found,motif file (matrix)
+"7
+*",AGTCACTGACGTAGTCACGTCGTAACGTACGTACTGCGTA,0.01,-6.691,1.00%,0.00%,0.0bp (21.6bp),Hnf6b(Homeobox)/LNCaP-Hnf6b-ChIP-Seq(GSE106305)/Homer(0.719)More Information | Similar Motifs Found,motif file (matrix)
+"8
+*",ACGTAGTCCGATACTGCGTAACGTACGTACTG,0.01,-5.754,7.00%,1.91%,100.9bp (231.7bp),NFYA/MA0060.3/Jaspar(0.846)More Information | Similar Motifs Found,motif file (matrix)
+"9
+*",ACGTAGTCACTGGTACACTGAGTCAGTCACGTGTACCGAT,0.01,-5.739,24.00%,13.50%,144.9bp (265.0bp),Zac1(Zf)/Neuro2A-Plagl1-ChIP-Seq(GSE75942)/Homer(0.625)More Information | Similar Motifs Found,motif file (matrix)

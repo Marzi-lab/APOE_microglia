@@ -1,10 +1,20 @@
 ---
-title: "Code to generate figures in: The APOE isoforms differentially shape the transcriptomic and epigenomic landscapes of human microglia in a xenotransplantation model of Alzheimer’s disease"
+title: "The APOE isoforms differentially shape the transcriptomic and epigenomic landscapes of human microglia in a xenotransplantation model of Alzheimer’s disease"
 format: html
+code-fold: true 
+code-summary: "Code"
 editor: visual
 ---
 
-```{load_packages}
+This markdown contains all the code to generate the main and supplementary figures in:
+
+Murphy, KB., Hu D., Wolfes, L., Mancuso, R., De Strooper, B., Marzi, SJ. The APOE isoforms differentially shape the transcriptomic and epigenomic landscapes of human microglia in a xenotransplantation model of Alzheimer's disease.
+
+```{r load_packages}
+#| echo: false
+#| warning: false
+#| message: false
+
 library(ggplot2)
 library(TxDb.Hsapiens.UCSC.hg38.knownGene)
 library(DESeq2)
@@ -26,10 +36,15 @@ library(RColorBrewer)
 library(edgeR)
 library(ghibli)
 library(readxl)
+library(wesanderson)
+library(RNAseqQC)
 ```
 
-```{differential_expression_analysis}
-#| echo: false
+```{r differential_expression_analysis}
+#| warning: false
+#| message: false 
+
+### Differential expression analysis using DeSeq2 ###
 
 # Define samples and groups 
 samples <- c(
@@ -107,6 +122,7 @@ convertEntrezToGeneSymbol <- function(res) {
 
 res_annot <- lapply(res, convertEntrezToGeneSymbol)
 
+
 # Filter to remove genes with NA logFC and perform FDR correction
 filter_adjust <- function(x) { 
   res_df <- x[complete.cases(x$log2FoldChange), ]
@@ -132,10 +148,20 @@ E4vsE3_rna <- get_deg_res(res_annot_filt[[2]])
 E4vsE2_rna <- get_deg_res(res_annot_filt[[3]])
 KOvsE3_rna <- get_deg_res(res_annot_filt[[4]])
 
+E2vsE3_rna_sig <- E2vsE3_rna[E2vsE3_rna$fdr<0.05,]
+E4vsE3_rna_sig <- E4vsE3_rna[E4vsE3_rna$fdr<0.05,]
+E4vsE2_rna_sig <- E4vsE2_rna[E4vsE2_rna$fdr<0.05,]
+KOvsE3_rna_sig <- KOvsE3_rna[KOvsE3_rna$fdr<0.05,]
+
+
 ```
 
-```{differential_accessibility_analysis}
-#| echo: false
+```{r differential_accessibility_analysis}
+#| warning: false
+#| message: false
+#| results: hide
+
+### Differential chromatin accessibility analysis using DeSeq2 ###
 
 # Read in ATAC-seq counts
 # Peaks were called using MACS3 with a p-value cut off of 0.01
@@ -159,7 +185,7 @@ keep <- filterByExpr(atac_f2_counts, design)
 atac_f3_counts <- atac_f2_counts[keep,]
 
 # DESeq2 analysis
-meta <- data.frame(group, row.names = colnames(atac_f3_counts))
+meta <- data.frame(samples = colnames(atac_f3_counts), group)
 atac_dds <- DESeqDataSetFromMatrix(atac_f3_counts, meta, ~group)
 atac_dds <- DESeq(atac_dds)
 
@@ -184,12 +210,12 @@ KOvsE3_dar <- get_dar_res(c("group", "KO", "E3"))
 
 # Annotate peaks
 txdb <- TxDb.Hsapiens.UCSC.hg38.knownGene
-peaks_annot <- as.data.frame(annotatePeak(
+peaks_annot <- suppressMessages(as.data.frame(annotatePeak(
   makeGRangesFromDataFrame(atac_peaks[, 1:3]), 
   TxDb = txdb, 
   tssRegion = c(-3000, 3000), 
   annoDb = "org.Hs.eg.db"
-))
+)))
 peaks_annot$peak <- row.names(atac_peaks)
 
 # Function to merge DAR with annotation and add contrast information
@@ -219,18 +245,24 @@ KOvsE3_atac_sig <- KOvsE3_atac_annot[KOvsE3_atac_annot$fdr < 0.05,]
 
 ```
 
-Figure 1: Transcriptomic and epigenomic profiling of xenotransplanted microglia reveals changes to their regulation in Alzheimer’s disease across the different APOE isoforms. a) Experimental design for xenotransplantation of iPSC-derived human microglia into the brains of AppNL-G-F mice (APOE2 = 5, APOE3 = 5, E4 = 4, APOE KO = 2) and high-quality transcriptomic data across 17 mice (APOE2 = 5, APOE4 = 4, APOE4 = 5, APOE KO = 3), followed by transcriptomic and chromatin accessibility profiling at 12 months. b) Genome tracks showing chromatin accessibility signals of all APOE groups around the Apoe locus. c) Boxplot of expression profiles of APOE, confirming the knockout. d) Stacked barplot of the number of differentially expressed genes (DEGs; FDR < 0.05) identified through pairwise comparisons across the experimental groups. e) Stacked barplot of the number of differentially accessible regions (DARs) and how many of these overlap with the DEGs based on peak-to-gene annotation. 
+**Figure 1: Transcriptomic and epigenomic profiling of xenotransplanted microglia reveals changes to their regulation in Alzheimer's disease across the different *APOE* isoforms.**
 
-```{figure_1}
-#| echo: false
+![](figures/chapter5_workflow.png)
 
-## A: workflow ##
+**Figure 1a) Experimental design for xenotransplantation of iPSC-derived human microglia into the brains of AppNL-G-F mice (*APOE2* = 5, *APOE3* = 5, E4 = 4, *APOE*-KO = 2) and high-quality transcriptomic data across 17 mice (*APOE2* = 5, *APOE4* = 4, *APOE4* = 5, *APOE*-KO = 3), followed by transcriptomic and chromatin accessibility profiling at 12 months.**
 
-## B: apoe expression ##
+```{r figure_1b}
+#| warning: false
+#| message: false
+#| fig-align: center
+#| fig-height: 4
+#| fig-width: 5
+
+## Figure 1b: apoe expression ##
 apoe <- plotCounts(dds, gene="348", intgroup="group", returnData = TRUE)
 my_comparisons <- list(c("E4", "KO"), c("E3", "KO"), c("E2","KO"), c("E4", "E3"))
 
-ggplot(apoe, aes(x=group, y=count, fill=group)) + 
+apoe_exp <- ggplot(apoe, aes(x=group, y=count, fill=group)) + 
   geom_boxplot() + 
   theme_classic() + 
   scale_fill_manual(values = ghibli_palette("YesterdayMedium", direction = -1)) + 
@@ -242,10 +274,20 @@ ggplot(apoe, aes(x=group, y=count, fill=group)) +
   geom_jitter() +
   labs(fill=NULL)
 
-## C: chromatin accessibility around APOE locus ##
+plot(apoe_exp)
+```
+
+**Figure 1b) Boxplot of expression profiles of *APOE*, confirming the knockout.**
+
+```{r figure_1c}
+#| fig-align: center
+#| fig-height: 6.5
+#| fig-width: 6
+
+## Figure 1c: chromatin accessibility around APOE locus ##
 
 # Get TSS of APOE and plot datatrack  
-hg38_genes <- genes(TxDb.Hsapiens.UCSC.hg38.knownGene)
+hg38_genes <- suppressMessages(genes(TxDb.Hsapiens.UCSC.hg38.knownGene))
 
 start <- start(hg38_genes[hg38_genes$gene_id %in% "348",]) - 2000 
 end <- end(hg38_genes[hg38_genes$gene_id %in% "348",]) + 2000
@@ -254,7 +296,7 @@ end <- end(hg38_genes[hg38_genes$gene_id %in% "348",]) + 2000
 track_list <- c(E3 = "data/E3-1.bw", E4 = "data/E4-1.bw", E2 = "data/E2-1.bw", KO = "data/KO-1.bw")
 
 # Set apoe track region
-apoe_region <- toGRanges(data.frame(chr="chr19", start=start, end=end))
+apoe_region <- suppressMessages(toGRanges(data.frame(chr="chr19", start=start, end=end)))
 
 # Set plotting parameters
 pp <- getDefaultPlotParams(plot.type=1)
@@ -268,7 +310,7 @@ kp <- plotKaryotype(zoom = apoe_region, cex=1.7, plot.params = pp)
 
 kpAddBaseNumbers(kp, tick.dist = 3000, minor.tick.dist = 1500, add.units = TRUE, cex=1.5, digits = 6)
 
-apoe_data <- makeGenesDataFromTxDb(TxDb.Hsapiens.UCSC.hg38.knownGene, karyoplot=kp, plot.transcripts = TRUE, plot.transcripts.structure = TRUE)
+apoe_data <- suppressMessages(makeGenesDataFromTxDb(TxDb.Hsapiens.UCSC.hg38.knownGene, karyoplot=kp, plot.transcripts = TRUE, plot.transcripts.structure = TRUE))
 apoe_data$genes$name <- "APOE"
 
 # Plotting tracks
@@ -287,8 +329,16 @@ plot_track("KO", 1, "#4D6D93FF", 0.26745)
 plot_track("E4", 2, "#6FB382FF", 0.52827)
 plot_track("E3", 3, "#DCCA2CFF", 0.73274)
 plot_track("E2", 4, "#92BBD9FF", 1)
+```
 
-## D: no of DEGs ##
+**Figure 1c) Genome tracks showing chromatin accessibility signals of all APOE groups around the *APOE* locus.**
+
+```{r figure_1d}
+#| fig-align: center
+#| fig-height: 5
+#| fig-width: 7
+
+## Figure 1d: no of DEGs ##
 KOvsE3_rna$comparison <- "KOvsE3"
 E4vsE2_rna$comparison <- "E4vsE2"
 E4vsE3_rna$comparison <- "E4vsE3"
@@ -300,7 +350,7 @@ comparisons$diffExpressed[comparisons$log2FoldChange > 0 & comparisons$fdr < 0.0
 comparisons$diffExpressed[comparisons$log2FoldChange < 0 & comparisons$fdr < 0.05] <- "Down"
 comparisons$diffExpressed <- factor(comparisons$diffExpressed, levels=c("Up", "Down", "Not sig"))
 
-ggplot(comparisons[!comparisons$diffExpressed == "Not sig",], aes(x=comparison, fill=diffExpressed)) + 
+degs_plot <- ggplot(comparisons[!comparisons$diffExpressed == "Not sig",], aes(x=comparison, fill=diffExpressed)) + 
   geom_bar(stat="count") + 
   xlab("") + 
   ylab("Number of DEGs") +
@@ -309,7 +359,17 @@ ggplot(comparisons[!comparisons$diffExpressed == "Not sig",], aes(x=comparison, 
   geom_text(stat = 'count', aes(label=after_stat(count), y=after_stat(count) + 1), position=position_stack(vjust=0.5), size=6.5, colour="black") + 
   theme(legend.text=element_text(size=20), text = element_text(size = 20))
 
-## E: no of DARs with DEG overlap ## 
+plot(degs_plot)
+```
+
+**Figure 1d) Stacked barplot of the number of differentially expressed genes (DEGs; FDR \< 0.05) identified through pairwise comparisons across the experimental groups.**
+
+```{r figure_1e}
+#| fig-align: center
+#| fig-height: 5
+#| fig-width: 7
+
+## Figure 1e: no of DARs with DEG overlap ## 
 
 # Function to get data gene names annotated to significant peaks
 create_gene_df <- function(sig_data, symbol_col, diff_col, contrast_col, assay_name) {
@@ -361,7 +421,7 @@ overlap_counts <- rna_atac_genes %>%
 gene_counts <- dplyr::left_join(gene_counts, overlap_counts, by = "contrast")
 
 # Plot the results
-ggplot(gene_counts[gene_counts$assay == "ATAC-seq", ], aes(x = contrast, y = count, fill = assay)) +
+dars_plot <- ggplot(gene_counts[gene_counts$assay == "ATAC-seq", ], aes(x = contrast, y = count, fill = assay)) +
   geom_bar(stat = "identity", position = "dodge") +
   geom_bar(aes(y = overlap_count, fill = "Overlap"), stat = "identity", position = "dodge") +
   geom_text(aes(label = paste(overlap_count, "/", count)), position = position_dodge(width = 0.9), vjust = -0.5, size = 4.5) +
@@ -371,23 +431,28 @@ ggplot(gene_counts[gene_counts$assay == "ATAC-seq", ], aes(x = contrast, y = cou
   theme_bw() +
   theme(legend.text = element_text(size = 20), text = element_text(size = 20))
 
+plot(dars_plot)
 ```
 
-### Differentially expressed genes are paralleled by changes in chromatin accessibility in their vicinity
+**Figure 1e) Stacked barplot of the number of differentially accessible regions (DARs) and how many of these overlap with the DEGs based on peak-to-gene annotation.**
 
-```{figure_2}
-#| echo: false
+**Figure 2: Microglia-expressing the different APOE isoforms exhibit widespread differences in gene regulation.**
+
+```{r figure_2a}
+#| fig-align: center
+#| fig-height: 5
+#| fig-width: 6
+
+## Figure 2s: E2vsE3 DEGs volcano plot ##
 
 # set factor level 
 comparisons$diffExpressed <- factor(comparisons$diffExpressed, levels=c("Up", "Down", "Not sig"))
 
 # fill in missing gene symbol for one of the top sig genes
-comparisons$hgnc_symbol[comparisons$Row.names=="102724316"] <- "SVIL-AS1"
-
-## A: E2vsE3 DEGs volcano plot ##
+comparisons$hgnc_symbol[comparisons$entrezgene_id=="102724316"] <- "SVIL-AS1"
 
 # get top 20 genes for labelling 
-top_genes <- head(comparisons[comparisons$comparison == "E2vsE3", ], 20)
+top_genes <- head(comparisons[comparisons$comparison == "E2vsE3", ], 10)
 
 E2vsE3_volcano <- ggplot(comparisons[comparisons$comparison=="E2vsE3",], 
                          aes(x=log2FoldChange, y=-log10(fdr), colour=diffExpressed)) + 
@@ -399,14 +464,25 @@ E2vsE3_volcano <- ggplot(comparisons[comparisons$comparison=="E2vsE3",],
   guides(colour="none") + 
   theme(text = element_text(size=16), plot.title = element_text(hjust = 0.5)) + 
   ggtitle("E2 vs E3") + 
-  geom_text_repel(data = top_genes, aes(label = hgnc_symbol), box.padding = 0.5, colour="#506777FF", size=5) +
+  geom_label_repel(data = top_genes, aes(label = hgnc_symbol), box.padding = 0.5, colour="#506777FF", size=5) +
   geom_vline(xintercept = 0, linetype = "dashed", color = "slategrey") +
   geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "slategrey")
 
-## B: E4vsE3 DEGs volcano plot ##
+plot(E2vsE3_volcano)
+
+```
+
+**Figure 2a) Differentially expressed genes in *APOE2* vs *APOE3*-expressing microglia.**
+
+```{r figure_2b}
+#| fig-align: center
+#| fig-height: 5
+#| fig-width: 6
+
+## Figure 2b: E4vsE3 DEGs volcano plot ##
 
 # get top 20 genes for labelling 
-top_genes <- head(comparisons[comparisons$comparison == "E4vsE3", ], 20)
+top_genes <- head(comparisons[comparisons$comparison == "E4vsE3", ], 10)
 
 E4vsE3_volcano <- ggplot(comparisons[comparisons$comparison=="E4vsE3",], 
                          aes(x=log2FoldChange, y=-log10(fdr), colour=diffExpressed)) + 
@@ -418,14 +494,24 @@ E4vsE3_volcano <- ggplot(comparisons[comparisons$comparison=="E4vsE3",],
   guides(colour="none") + 
   theme(text = element_text(size=16), plot.title = element_text(hjust = 0.5)) + 
   ggtitle("E4 vs E3") + 
-  geom_text_repel(data = top_genes, aes(label = hgnc_symbol), box.padding = 0.5, colour="#796F18FF", size=5) +
+  geom_label_repel(data = top_genes, aes(label = hgnc_symbol), box.padding = 0.5, colour="#796F18FF", size=5) +
   geom_vline(xintercept = 0, linetype = "dashed", color = "slategrey") +
   geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "slategrey")
 
-## C: E4vsE2 DEGs volcano plot ##
+plot(E4vsE3_volcano)
+```
+
+**Figure 2b) Differentially expressed genes in *APOE4* vs *APOE3*-expressing microglia.**
+
+```{r figure_2c}
+#| fig-align: center
+#| fig-height: 5
+#| fig-width: 6
+
+## Figure 2c: E4vsE2 DEGs volcano plot ##
 
 # get top 20 genes for labelling 
-top_genes <- head(comparisons[comparisons$comparison == "E4vsE2", ], 20)
+top_genes <- head(comparisons[comparisons$comparison == "E4vsE2", ], 10)
 
 E4vsE2_volcano <- ggplot(comparisons[comparisons$comparison=="E4vsE2",], 
                          aes(x=log2FoldChange, y=-log10(fdr), colour=diffExpressed)) + 
@@ -437,11 +523,21 @@ E4vsE2_volcano <- ggplot(comparisons[comparisons$comparison=="E4vsE2",],
   guides(colour="none") + 
   theme(text = element_text(size=16), plot.title = element_text(hjust = 0.5)) + 
   ggtitle("E4 vs E2") + 
-  geom_text_repel(data = top_genes, aes(label = hgnc_symbol), box.padding = 0.5, colour="#3E6248FF", size=5) +
+  geom_label_repel(data = top_genes, aes(label = hgnc_symbol), box.padding = 0.5, colour="#3E6248FF", size=5) +
   geom_vline(xintercept = 0, linetype = "dashed", color = "slategrey") +
   geom_hline(yintercept = -log10(0.05), linetype = "dashed", color = "slategrey")
 
-## D: RRHO E2 and KO ##
+plot(E4vsE2_volcano)
+```
+
+**Figure 2c) Differentially expressed genes in *APOE4* vs *APOE2*-expressing microglia.**
+
+```{r figure_2d}
+#| fig-align: center
+#| fig-height: 6
+#| fig-width: 7
+
+## Figure 2d: RRHO E2 and KO ##
 
 set.seed(1234)
 
@@ -474,11 +570,16 @@ E2vsE3_rrho <- E2vsE3_rrho[,c("entrezgene_id", "rrho_pvalue")]
 E2_KO_rrho <-  RRHO2_initialize(na.omit(E2vsE3_rrho), na.omit(KOvsE3_rrho), labels = c("E2", "KO"), log10.ind=TRUE)
 
 E2_KO_heatmap <- RRHO2_heatmap(E2_KO_rrho, colorGradient = wes_palette("Zissou1", 100, type = "continuous"), maximum = 350)
+```
 
-E2_KO_rrho_cor <- merge(E2vsE3_rrho, KOvsE3_rrho, by = "entrezgene_id")
-#cor.test(E2_KO_rrho_cor$rrho_pvalue.x, E2_KO_rrho_cor$rrho_pvalue.y, method="spearman")
+**Figure 2d) Rank-Rank Hypergeometric Overlap (RRHO) heatmap comparing expression signatures between *APOE*-KO vs *APOE3* and *APOE2* vs *APOE3*.**
 
-## E: RRHO E4 and KO heatmap ##
+```{r figure_2e}
+#| fig-align: center
+#| fig-height: 6
+#| fig-width: 7
+
+## Figure 2e: RRHO E4 and KO heatmap ##
 
 # Set rrho p-value for E4 vs E3
 E4vsE3_rrho <- E4vsE3_rna[, c("entrezgene_id", "pvalue", "log2FoldChange")]
@@ -497,30 +598,98 @@ E4_KO_rrho <-  RRHO2_initialize(na.omit(E4vsE3_rrho), na.omit(KOvsE3_rrho), labe
 
 E4_KO_heatmap <- RRHO2_heatmap(E4_KO_rrho, colorGradient = wes_palette("Zissou1", 100, type = "continuous"), maximum = 350)
 
-E4_KO_rrho_cor <- merge(E4vsE3_rrho, KOvsE3_rrho, by = "entrezgene_id")
-cor.test(E4_KO_rrho_cor$rrho_pvalue.x, E4_KO_rrho_cor$rrho_pvalue.y, method="spearman")
+```
 
-## G: MAGMA gene set analysis with AD GWAS ##
+**Figure 2e) Rank-Rank Hypergeometric Overlap (RRHO) heatmap comparing expression signatures between *APOE*-KO vs *APOE3* and *APOE4* vs *APOE3*.**
 
-magma_res <- read.csv("data/MAGMA_AD_GWAS_res.csv")
+```{r figure_2f}
+#| fig-align: center
+#| fig-height: 6
+#| fig-width: 8
+#| warning: false 
+#| message: false 
+
+E4_uu <- data.frame(gene=E4_KO_rrho[["genelist_uu"]][["gene_list_overlap_uu"]])
+E4_uu$direction <- "E4_uu"
+E4_uu$genotype <- "E4"
+E4_uu <- merge(E4_uu, E4vsE3_rna, by.x="gene", by.y="entrezgene_id")
+names(E4_uu) <- gsub("log2FoldChange", "log2FoldChange_E4", names(E4_uu))
+
+E2_uu <- data.frame(gene=E2_KO_rrho[["genelist_uu"]][["gene_list_overlap_uu"]])
+E2_uu$direction <- "E2_uu"
+E2_uu$genotype <- "E2"
+E2_uu <- merge(E2_uu, E2vsE3_rna, by.x="gene", by.y="entrezgene_id")
+names(E2_uu) <- gsub("log2FoldChange", "log2FoldChange_E2", names(E2_uu))
+
+E4_dd <- data.frame(gene=E4_KO_rrho[["genelist_dd"]][["gene_list_overlap_dd"]])
+E4_dd$direction <- "E4_dd"
+E4_dd$genotype <- "E4"
+E4_dd <- merge(E4_dd, E4vsE3_rna, by.x="gene", by.y="entrezgene_id")
+names(E4_dd) <- gsub("log2FoldChange", "log2FoldChange_E4", names(E4_dd))
+
+E2_dd <- data.frame(gene=E2_KO_rrho[["genelist_dd"]][["gene_list_overlap_dd"]])
+E2_dd$direction <- "E2_dd"
+E2_dd$genotype <- "E2"
+E2_dd <- merge(E2_dd, E2vsE3_rna, by.x="gene", by.y="entrezgene_id")
+names(E2_dd) <- gsub("log2FoldChange", "log2FoldChange_E2", names(E2_dd))
+
+# get genes which are shared across the comparisons 
+
+uu <- merge(E2_uu, E4_uu, by="gene")
+dd <- merge(E2_dd, E4_dd, by="gene")
+
+KO_overlap <- rbind(uu, dd)
+
+KO_overlap$Significant <- "Not significant"
+KO_overlap$Significant[KO_overlap$fdr.x<0.05] <- "FDR < 0.05 in APOE2"
+KO_overlap$Significant[KO_overlap$fdr.y<0.05] <- "FDR < 0.05 in APOE4"
+KO_overlap$Significant[KO_overlap$fdr.x<0.05 & KO_overlap$fdr.y < 0.05] <- "FDR < 0.05 in both"
+
+ggplot(KO_overlap, aes(log2FoldChange_E2, log2FoldChange_E4, colour=Significant)) + geom_point(size=1) + 
+  xlab("logFC of genes with similar expression profiles across \n APOE2 vs APOE3 and APOE-KO vs APOE3") + 
+  ylab("logFC of genes with similar expression profiles across \n APOE4 vs APOE3 and APOE-KO vs APOE3") + 
+  theme_classic() + ylim(-8,6) + xlim(-8,6) + 
+  scale_colour_manual(values=c("#DCCA2CFF", "#92BBD9FF", "peru", "moccasin")) + 
+  theme(text = element_text(size=14)) +
+  geom_vline(xintercept=0, linetype="dashed", color="darkgrey") + 
+  geom_hline(yintercept=0, linetype="dashed", color="darkgrey")
+
+```
+
+```{r figure_2g}
+#| fig-align: center
+#| fig-height: 5
+#| fig-width: 7
+
+## Figure 2f: MAGMA gene set analysis with AD GWAS ##
+
+magma_res <- read.csv("data/MAGMA_DEGs_AD_GWAS_res.csv")
 
 magma_res$VARIABLE <- factor(magma_res$VARIABLE, levels=c("Up in E2vsE3", "Down in E2vsE3", "Up in E4vsE3", "Down in E4vsE3", "Up in E4vsE2", "Down in E4vsE2", "Up in KOvsE3", "Down in KOvsE3"))
 
 magma_plot <- ggplot(magma_res, aes(x=-log10(fdr), y=VARIABLE, fill=VARIABLE)) + 
   geom_col(colour="black") + theme_bw() + xlab("-log10(FDR)") + ylab("DEGs") + 
-  theme(text = element_text(size=16)) + 
+  theme(text = element_text(size=14)) + 
   theme(legend.position = "none", plot.title = element_text(size = 14, hjust=0.5)) + 
   geom_vline(xintercept=-log10(0.05), linetype='dashed', col = 'slategrey') + 
   ggtitle("MAGMA gene set analysis using AD GWAS") + facet_wrap(~GWAS) + 
   scale_y_discrete(limits=rev) + 
   scale_fill_manual(values = c("#C3DAEAFF", "#92BBD9FF", "#ECE28BFF", "#DCCA2CFF", "#B1D5BBFF", "#6FB382FF", "#9DAFC3FF", "#4D6D93FF"))
 
+plot(magma_plot)
+
 ```
 
-```{figure_3}
-#| echo: false
+**Figure 2g) MAGMA gene set analysis using the differentially expressed genes across the *APOE* groups with three independent AD GWAS.**
 
-# prep data to plot heatmaps of DARs
+**Figure 3: Differentially expressed genes exhibit differential chromatin accessibility in their vicinity.**
+
+```{r figure_3a}
+#| fig-align: center
+#| fig-height: 7
+#| fig-width: 5
+
+## Figure 3a: E2vsE3 DAR heatmap with RNA-seq genes ## 
 
 # normalise counts 
 counts_norm <- normTransform(atac_dds)
@@ -539,8 +708,6 @@ KOvsE3_counts <- counts_z[indices, ]
 
 indices <- match(E4vsE2_atac_sig$Peak, rownames(counts_z))
 E4vsE2_counts <- counts_z[indices, ]
-
-## A: E2vsE3 DAR heatmap with RNA-seq genes ## 
 
 mat  <- E2vsE3_counts
 rownames(mat) <- E2vsE3_atac_genes$SYMBOL
@@ -583,10 +750,17 @@ E2vsE3_pheatmap <- pheatmap(mat,  color = colorRampPalette(rev(brewer.pal(n = 7,
 cols=mat_df[E2vsE3_pheatmap$tree_row$order,]$label_colour
 E2vsE3_pheatmap$gtable$grobs[[5]]$gp=gpar(col=cols, fontsize = 12)
 E2vsE3_pheatmap
+```
 
-## B: E4vsE3 DAR heatmap with RNA-seq genes ##
+**Figure 3a) Heatmap showing differential chromatin accessibility of significant peaks (FDR \< 0.05) when comparing *APOE2* vs *APOE3*-expressing microglia.**
 
-## A: E4vsE3 DAR heatmap with RNA-seq genes ## 
+```{r figure_3b}
+#| fig-align: center
+#| fig-height: 8
+#| fig-width: 5
+
+## Figure 3b: E4vsE3 DAR heatmap with RNA-seq genes ##
+
 mat  <- E4vsE3_counts
 rownames(mat) <- E4vsE3_atac_genes$SYMBOL
 
@@ -628,9 +802,16 @@ E4vsE3_pheatmap <- pheatmap(mat,  color = colorRampPalette(rev(brewer.pal(n = 7,
 cols=mat_df[E4vsE3_pheatmap$tree_row$order,]$label_colour
 E4vsE3_pheatmap$gtable$grobs[[5]]$gp=gpar(col=cols, fontsize = 12)
 E4vsE3_pheatmap
+```
 
+**Figure 3b) Heatmap showing differential chromatin accessibility of significant peaks (FDR \< 0.05) when comparing *APOE4* vs *APOE3*-expressing microglia.**
 
-## D: CHCHD2 expression ## 
+```{r figure_3c}
+#| fig-align: center
+#| fig-height: 4
+#| fig-width: 5
+
+## Figure 3d: CHCHD2 expression ## 
 chchd2 <- plotCounts(dds, gene="51142", intgroup="group", returnData = TRUE)
 my_comparisons <- list( c("E2", "E3"), c("E2", "E4"), c("E2","KO"))
 
@@ -644,8 +825,18 @@ ggplot(chchd2, aes(x=group, y=count, fill=group)) +
   theme(text = element_text(size = 20), plot.title = element_text(size=20,hjust = 0.5, face=c("italic"))) + stat_compare_means(comparisons = my_comparisons, method="t.test") +
   geom_jitter() + 
   labs(fill=NULL)
+```
 
-## E: chromatin accessibility around chchd2 ##
+**Figure 3c) Boxplot of expression profiles of CHCHD2 shows reduced expression in the APOE4 and the APOE-KO microglia.**
+
+```{r figure_3d}
+#| fig-align: center
+#| fig-height: 6
+#| fig-width: 6.5
+#| message: false 
+#| warning: false
+
+## Figure 3d: chromatin accessibility around CHCHD2 ##
 
 start <- E4vsE2_atac_annot$geneStart[E4vsE2_atac_annot$SYMBOL=="CHCHD2"][1] -3000
 end <- E4vsE2_atac_annot$geneEnd[E4vsE2_atac_annot$SYMBOL=="CHCHD2"][1] + 3000
@@ -791,8 +982,16 @@ kpAxis(kp, ymin=0, ymax=computed.ymax, numticks = 2, r0=at$r0, r1=at$r1, cex = 1
 kpAddLabels(kp, labels = names(track_list)[4], r0=at$r0, r1=at$r1, 
             cex=2, label.margin = 0.035, col = track_colour)
 
+```
 
-## F: s-LDSC with AD, ALS, and ASD GWAS ##
+**Figure 3d) Genome tracks of chromatin accessibility signals around the *CHCHD2* locus show a loss of the open chromatin peak at the *CHCHD2* promoter in *APOE4* and *APOE*-KO microglia.**
+
+```{r figure_3e}
+#| fig-align: center
+#| fig-height: 5
+#| fig-width: 5
+
+## Figure 3c: s-LDSC with AD, ALS, and ASD GWAS ##
 
 # load in sLDSC res 
 sLDSC_res <- read.csv("data/sLDSC_ATAC_peaks_res.csv")
@@ -805,7 +1004,7 @@ enrichment_plot <- ggplot(sLDSC_res, aes(title, Enrichment, color=group)) +
         axis.text.x = element_blank(), 
         axis.title.x= element_blank(),
         legend.position="none") + 
-  ylab("Enrichment \n (Prop. h2 / Prop. SNPs)") + 
+  ylab("Enrichment") + 
   geom_pointrange(aes(ymin=Enrichment-Enrichment_std_error, 
                       ymax=Enrichment+Enrichment_std_error)) + 
   geom_hline(yintercept=1, linetype="dotted", color="slategrey") + 
@@ -825,13 +1024,18 @@ coefficient_plot <- ggplot(sLDSC_res, aes(title, -log10(Coefficient_p_fdr), fill
   xlab("Open chromatin regions in \n xenograted human microglia")
 
 ggarrange(enrichment_plot, coefficient_plot, ncol=1, nrow=2, common.legend=FALSE, align="v")
-
 ```
 
+**Figure 3e) s-LDSC analysis using all open chromatin regions from the xenotransplanted human microglia with GWAS summary statistics for AD, ALS, and ASD shows a microglia-specific enrichment for AD.**
 
-```{figure_4}
+**Figure 4: Pro-inflammatory cytokines are upregulated in *APOE4*-expressing microglia.**
 
-## A: Microglia cluster heatmap ## 
+```{r figure_4a}
+#| fig-align: center
+#| fig-height: 5
+#| fig-width: 10
+
+## Figure 4a: Microglia cluster heatmap ## 
 
 sheet_names <- c("HM", "tCRM", "CRM-1", "CRM-2", "RM", "DAM", "HLA", "IRM")
 microglial_states <- lapply(sheet_names, function(sheet_name) {
@@ -924,8 +1128,16 @@ ggplot(all_mglcluster_ol, aes(x = Comparison, y = Cluster)) +
   theme_minimal() +
   facet_wrap(~Direction) + xlab("") + ylab("Microglia cluster") + 
   theme(text = element_text(size = 16))
+```
 
-## B: GO enrichment using E4 genes overlapping DAM ## 
+**Figure 4a) Heatmap showing enrichment of genes differentially expressed across the *APOE* groups amongst microglia clusters defined by scRNA-seq.**
+
+```{r figure_4b}
+#| fig-align: center
+#| fig-height: 6
+#| fig-width: 12
+
+## Figure 4b: GO enrichment using E4 genes overlapping DAM ## 
 
 # get dam microglia cluster 
 dam <- microglial_states_top100[[6]]
@@ -962,9 +1174,16 @@ ggplot(E4vsE2_down_dam_bp[1:20,],
   scale_colour_gradient(low = "#B1D5BBFF", high = "#6FB382FF") + 
   theme(text = element_text(size=18), plot.title = element_text(size = 18, hjust=0.5)) + 
   guides(size=guide_legend(title="Gene count"), colour = guide_legend(title = "FDR"))
+```
 
+**Figure 4b) Dotplot of pathway enrichment analysis using genes downregulated in *APOE4* microglia that are enriched in the DAM cluster.**
 
-## C: CCL3 expression ##
+```{r figure_4c}
+#| fig-align: center
+#| fig-height: 4
+#| fig-width: 5
+
+## Figure 4c: CCL3 expression ##
 ccl3 <- plotCounts(dds, gene="6348", intgroup="group", returnData=TRUE)
 my_comparisons <- list( c("E2", "E3"), c("E2", "E4"), c("E2","KO"))
 
@@ -978,8 +1197,16 @@ ggplot(ccl3, aes(x=group, y=count, fill=group)) +
   theme(text = element_text(size = 14), plot.title = element_text(hjust = 0.5, face="italic")) +
   stat_compare_means(comparisons = my_comparisons, method="t.test") + 
   geom_jitter()
+```
 
-## D: CCL3L1 expression ## 
+**Figure 4c) Boxplot of gene expression profiles of *CCL3*.**
+
+```{r figure_4d}
+#| fig-align: center
+#| fig-height: 4
+#| fig-width: 5
+
+## Figure 4d: CCL3L1 expression ## 
 ccl3l1 <- plotCounts(dds, gene="414062", intgroup="group", returnData=TRUE)
 my_comparisons <- list( c("E2", "E3"), c("E2", "E4"), c("E2","KO"))
 
@@ -992,8 +1219,16 @@ ggplot(ccl3l1, aes(x=group, y=count, fill=group)) +
   theme(text = element_text(size = 14), plot.title = element_text(hjust = 0.5, face="italic")) +
   stat_compare_means(comparisons = my_comparisons, method="t.test") + 
   geom_jitter()
+```
 
-## E: CCL4L2 expression ##
+**Figure 4d) Boxplot of gene expression profiles of *CCL3L1*.**
+
+```{r figure_4e}
+#| fig-align: center
+#| fig-height: 4
+#| fig-width: 5
+
+## Figure 4e: CCL4L2 expression ##
 ccl4l2 <- plotCounts(dds, gene="9650", intgroup="group", returnData=TRUE)
 my_comparisons <- list( c("E2", "E3"), c("E2", "E4"), c("E2","KO"))
 
@@ -1002,11 +1237,19 @@ ggplot(ccl4l2, aes(x=group, y=count, fill=group)) +
   theme_classic() + 
   scale_fill_manual(values = ghibli_palette("YesterdayMedium", direction = -1)) + 
   ylab("Count") + 
-  ggtitle("ccl4l2") + 
+  ggtitle("CCL4L2") + 
   theme(text = element_text(size = 14), plot.title = element_text(hjust = 0.5, face="italic")) +
   stat_compare_means(comparisons = my_comparisons, method="t.test") + geom_jitter()
+```
 
-## F: CXCL16 expression ## 
+**Figure 4e) Boxplot of gene expression profiles of *CCL4L2*.**
+
+```{r figure_4f}
+#| fig-align: center
+#| fig-height: 4
+#| fig-width: 5
+
+## Figure 4f: CXCL16 expression ## 
 cxcl16 <- plotCounts(dds, gene="58191", intgroup="group", returnData=TRUE)
 my_comparisons <- list( c("E2", "E3"), c("E2", "E4"), c("E2","KO"))
 
@@ -1015,15 +1258,18 @@ ggplot(cxcl16, aes(x=group, y=count, fill=group)) +
   theme_classic() + 
   scale_fill_manual(values = ghibli_palette("YesterdayMedium", direction = -1)) + 
   ylab("Count") + 
-  ggtitle("cxcl16") + 
+  ggtitle("CXCL16") + 
   theme(text = element_text(size = 14), plot.title = element_text(hjust = 0.5, face="italic")) +
   stat_compare_means(comparisons = my_comparisons, method="t.test") + geom_jitter()
-  
-
 ```
 
+**Figure 4f) Boxplot of expression profiles of *CXCL16*.**
 
-```{figure_5}
+```{r WGCNA_analysis}
+#| warning: false
+#| message: false
+#| results: hide 
+
 dds_norm <- vst(ddsTxi_subset)
 
 dds_norm_t <- assay(dds_norm) %>% t() 
@@ -1039,7 +1285,7 @@ sft <- pickSoftThreshold(dds_norm_t,
 sft_df <- data.frame(sft$fitIndices) %>%
   dplyr::mutate(model_fit = -sign(slope) * SFT.R.sq)
 
-ggplot(sft_df, aes(x = Power, y = model_fit, label = Power)) +
+sft_threshold <- ggplot(sft_df, aes(x = Power, y = model_fit, label = Power)) +
   geom_point() +
   geom_text(nudge_y = 0.1) +
   geom_hline(yintercept = 0.80, col = "red") +
@@ -1067,12 +1313,6 @@ module_colours <- labels2colors(network$colors)
 module_membership <- moduleEigengenes(dds_norm_t, network$colors)
 module_eigengenes <- module_membership$eigengenes
 
-# Identify modules and assign colors
-module_colours <- labels2colors(network$colors)
-
-# Extract module membership and module eigengene values
-module_membership <- moduleEigengenes(dds_norm_t, network$colors)
-module_eigengenes <- module_membership$eigengenes
 
 # Run differential expression analysis 
 samples <- c(paste("E2-", 1:5, sep=""), paste("E3-", 2:5, sep=""), paste("E4-", 1:5, sep=""), paste("KO-", 3:5, sep=""))
@@ -1106,7 +1346,51 @@ KOvsE3_limma <- limma::topTable(contrasts_fit, coef = "KOvsE3", number = Inf)
 gene_module_key <- tibble::enframe(network$colors, name = "gene", value = "module") %>%
   dplyr::mutate(module = paste0("ME", module))
 
-gene_module_key <- merge(gene_module_key, gene_ids, by.x="gene", by.y="entrezgene_id")
+# get gene ids 
+gene_symbols <- getBM(
+    attributes = c('hgnc_symbol', 'entrezgene_id'),
+    values = gene_module_key$gene,
+    mart = ensembl
+  )
+
+gene_module_key <- merge(gene_module_key, gene_symbols, by.x="gene", by.y="entrezgene_id")
+```
+
+**Figure 5: Gene networks upregulated in APOE2 microglia are associated with cellular migration and immune responses.**
+
+```{r figure_5a}
+#| fig-align: center
+#| fig-height: 4
+#| fig-width: 4.5
+
+# Proliferation and migration module 
+
+module_eigengenes_exp <- cbind(module_eigengenes, colData)
+
+module_eigengenes_exp$title <- "Proliferation and migration module"
+
+ggplot(module_eigengenes_exp, aes(x = group, y = ME1, fill = group)) +
+  geom_boxplot(width = 0.3, outlier.shape = NA) + xlab("") + 
+  ggforce::geom_sina(maxwidth = 0.3) + ylab("Module eigengenes") + 
+  theme_bw() + 
+  facet_grid(. ~ title) + 
+  theme(text = element_text(size=18)) + 
+  theme(strip.background = element_rect(fill = "#92BBD9FF")) + 
+  guides(fill="none") + 
+  scale_fill_manual(values = ghibli_palette("YesterdayMedium", direction = -1)) 
+
+
+```
+
+**Figure 5a) Barplot of eigengene expression of the WGCNA module associated with proliferation and migration.**
+
+```{r figure_5b}
+#| fig-align: center
+#| fig-height: 8
+#| fig-width: 11.5
+#| message: false 
+#| warning: false 
+#| results: hide 
 
 # Run pathway enrichment analysis 
 all_GO_res <- list()
@@ -1160,25 +1444,10 @@ all_GO_res_df$module_name[all_GO_res_df$module == "ME22"] <- "Immune response mo
 
 # calculate gene ratio 
 all_GO_res_df <- all_GO_res_df %>%
-  rowwise() %>%
+  dplyr::rowwise() %>%
   mutate(GeneRatio_calc = as.numeric(strsplit(GeneRatio, "/")[[1]])[1] /
            as.numeric(strsplit(GeneRatio, "/")[[1]])[2])
 
-# Proliferation and migration module 
-
-module_eigengenes_exp <- cbind(module_eigengenes, colData)
-
-module_eigengenes_exp$title <- "Proliferation and migration module"
-
-ggplot(module_eigengenes_exp, aes(x = group, y = ME1, fill = group)) +
-  geom_boxplot(width = 0.3, outlier.shape = NA) + xlab("") + 
-  ggforce::geom_sina(maxwidth = 0.3) + ylab("Module eigengenes") + 
-  theme_bw() + 
-  facet_grid(. ~ title) + 
-  theme(text = element_text(size=18)) + 
-  theme(strip.background = element_rect(fill = "#92BBD9FF")) + 
-  guides(fill="none") + 
-  scale_fill_manual(values = ghibli_palette("YesterdayMedium", direction = -1)) 
 
 # get top 30 pathways 
 ME1_module_top30 <- head(all_GO_res_df[order(all_GO_res_df$GeneRatio_calc, decreasing = TRUE) & all_GO_res_df$module == "ME1", ], 30)
@@ -1208,6 +1477,14 @@ ggplot(ME1_module_top30,
         axis.title.y = element_text(size=20),
         text=element_text(size=20))  + 
   facet_wrap(~module_name) + ggtitle("Up in APOE2")
+```
+
+**Figure 5b) GO biological processes enriched for genes within the WGCNA module associated with proliferation and migration that is upregulated in *APOE2* microglia.**
+
+```{r figure_5c}
+#| fig-align: center
+#| fig-height: 4
+#| fig-width: 4.5
 
 # Immune response module 
 
@@ -1226,7 +1503,16 @@ ggplot(module_eigengenes_exp, aes(x = group, y = ME22, fill = group)) +
   theme(strip.background = element_rect(fill = "#92BBD9FF")) + 
   guides(fill="none") + 
   scale_fill_manual(values = ghibli_palette("YesterdayMedium", direction = -1)) 
+```
 
+**Figure 5c) Barplot of eigengene expression of the WGCNA module associated with immune responses.**
+
+```{r figure_5d}
+#| fig-align: center
+#| fig-height: 9
+#| fig-width: 11
+#| warning: false 
+#| message: false 
 
 # get top 30 pathways 
 ME22_module_top30 <- head(all_GO_res_df[order(all_GO_res_df$GeneRatio_calc, decreasing = TRUE) & all_GO_res_df$module == "ME22", ], 30)
@@ -1259,13 +1545,18 @@ ggplot(ME22_module_top30,
   scale_y_discrete(labels = c("adaptive immune response based on somatic recombination of immune receptors built from immunoglobulin superfamily domains" = "adaptive immune response based on somatic recombination of \n immune receptors built from immunoglobulin superfamily domains")) + 
   facet_wrap(~module_name)
 
-
 ```
 
+**Figure 5d) GO biological processes enriched for genes within the WGCNA module associated with immune responses, which is upregulated in *APOE2* microglia.**
 
-```{figure_6}
+**Figure 6: Regions with increased chromatin accessibility in *APOE2* microglia are enriched for the binding of vitamin D receptor.**
 
-## A: motif enrichment heatmap ## 
+```{r figure_6a}
+#| fig-align: center
+#| fig-height: 4
+#| fig-width: 5.5
+
+## Figure 6a: motif enrichment heatmap ## 
 
 # Read in motif enrichment results for top 100 upregulated peaks in E2 vs E3
 homer_res <- read.csv("data/HOMER_motif_enrich_E2vsE3_top100_res.csv")
@@ -1301,9 +1592,21 @@ plot_fdr <- ggplot(homer_res, aes(x = 1, y = motif_name, fill = log10fdr)) +
   theme(legend.position = "none", text = element_text(size=16))
 
 
-plot_fc + plot_fdr + plot_layout(guides = "collect") & theme(legend.position = "right") 
+motif_heatmaps <- plot_fc + plot_fdr + plot_layout(guides = "collect") & theme(legend.position = "right") 
 
-## B: VDR target gene overlap ## 
+
+```
+
+![](figures/motif_enrich_heatmap.png)
+
+**Figure 6a) Heatmap showing enrichment of motifs in regions with increased chromatin accessibility in *APOE2* microglia.**
+
+```{r figure_6b}
+#| fig-align: center
+#| fig-height: 4
+#| fig-width: 6.5
+
+## Figure 6b: VDR target gene overlap ## 
 vdr_target_genes <- read.csv("data/VDR_target_genes_24h_monocytes_Warwick2021.csv")
 
 vdr_target_genes_pos <- vdr_target_genes[vdr_target_genes$log2FoldChange>0 & vdr_target_genes$padj<0.05,]
@@ -1395,6 +1698,16 @@ vdr_ol_plot <- ggplot(all_vdr_ol[all_vdr_ol$Direction_vdr=="Upregulated",],
   geom_vline(xintercept=-log10(0.003125), linetype="dashed", color="darkgrey") +
   scale_fill_manual(values = c("#B1D5BBFF", "#92BBD9FF", "#4D6D93FF", "#9DAFC3FF", "#ECE28BFF", "#DCCA2CFF", "#C3DAEAFF", "#DCCA2CFF"))
 
+plot(vdr_ol_plot)
+```
+
+**Figure 6b) Barplot showing the overrepresentation of genes upregulated in *APOE2* microglia in a list of VDR target genes in monocytes.**
+
+```{r figure_6c}
+#| fig-align: center
+#| fig-height: 4
+#| fig-width: 5
+
 ## C: IL-1OR receptor ##
 
 il10r <- plotCounts(dds, gene="3587", intgroup="group", returnData = TRUE)
@@ -1414,45 +1727,225 @@ ggplot(il10r, aes(x=group, y=count, fill=group)) +
                     
 ```
 
-```{r supplementary_figure1}
+```{}
+```
+
+**Figure 6c) Boxplot of gene expression profiles of *IL-10RA*.**
+
+![](images/vitD_il10_microglia.png){fig-align="center"}
+
+**Figure 6d) Graphic adapted from Boontanrart et al. (2016), showing a mechanism of anti-inflammatory microglia activation mediated through vitamin D and IL-10 signalling.**
+
+```{r supp_figure_1a}
+#| fig-align: center
+#| fig-height: 4
+#| fig-width: 5
+#| message: false
+#| warning: false 
+#| results: hide 
+
+vsd <- vst(dds, blind = FALSE)
+colnames(vsd) <- vsd$samples
+pca <- prcomp(t(assay(vsd)))
+pca_data <- data.frame(pca$x)
+pca_data$group <- vsd$group
+
+pca_plot_data <- plotPCA(vsd, intgroup = "group", returnData = TRUE)
+
+apoe_palette <- ghibli_palette("YesterdayMedium", direction = -1)
+
+# PCA plot
+rna_pca <- ggplot(pca_plot_data, aes(x = PC1, y = PC2, color = group)) +
+  geom_point(size = 3) +
+  scale_colour_manual(values = apoe_palette) +
+  labs(title = "Gene expression", x = "PC1", y = "PC2") + 
+  theme_classic() +
+  theme(
+    legend.title = element_blank(),  
+    plot.title = element_text(hjust = 0.5),  
+    panel.border = element_rect(color = "slategrey", fill = NA, size = 1), 
+    text = element_text(size = 14)
+  ) +
+  geom_hline(yintercept = 0, colour = "slategrey") + 
+  geom_vline(xintercept = 0, colour = "slategrey")
+
+# outliers: check which samples are 3 standard deviations from the mean 
+find_group_outliers <- function(df) {
+  df %>%
+    group_by(group) %>%
+    summarise(
+      outliers_PC1 = list(which(abs(PC1 - mean(PC1)) > (3 * sd(PC1)))),
+      outliers_PC2 = list(which(abs(PC2 - mean(PC2)) > (3 * sd(PC2))))
+    )
+}
+
+find_group_outliers(pca_data)
+
+plot(rna_pca)
+
+```
+
+**Supplementary Figure 1a) PCA on gene expression across the *APOE* isoforms and the *APOE*-KO. PCA was generated using the variance stabilizing transformation (VST)-normalised expression counts matrix.**
+
+```{r supp_figure_1b}
+#| fig-align: center
+
+# Sample clustering 
+rna_cluster <- plot_sample_clustering(vsd, anno_vars = c("samples", "group"), distance = "euclidean")
+
+plot(rna_cluster)
+```
+
+**Supplementary Figure 1b) Hierarchical clustering using euclidean distance of VST-normalised expression counts of the *APOE* isoforms and the *APOE*-KO.**
+
+```{r supp_figure_1c}
+#| fig-align: center
+#| fig-height: 4
+#| fig-width: 5
+#| message: false 
+#| warninig: false
+#| results: hide 
+
+vsd <- vst(atac_dds, blind = FALSE)
+colnames(vsd) <- vsd$samples
+pca <- prcomp(t(assay(vsd)))
+pca_data <- data.frame(pca$x)
+pca_data$group <- vsd$group
+
+pca_plot_data <- plotPCA(vsd, intgroup = "group", returnData = TRUE)
+
+apoe_palette <- ghibli_palette("YesterdayMedium", direction = -1)
+
+# PCA plot
+atac_pca <- ggplot(pca_plot_data, aes(x = PC1, y = PC2, color = group)) +
+  geom_point(size = 3) +
+  scale_colour_manual(values = apoe_palette) +
+  labs(title = "Chromatin accessibility", x = "PC1", y = "PC2") + 
+  theme_classic() +
+  theme(
+    legend.title = element_blank(),  
+    plot.title = element_text(hjust = 0.5),  
+    panel.border = element_rect(color = "slategrey", fill = NA, size = 1), 
+    text = element_text(size = 14)
+  ) +
+  geom_hline(yintercept = 0, colour = "slategrey") + 
+  geom_vline(xintercept = 0, colour = "slategrey")
+
+# outliers: check which samples are 3 standard deviations from the mean 
+find_group_outliers <- function(df) {
+  df %>%
+    group_by(group) %>%
+    summarise(
+      outliers_PC1 = list(which(abs(PC1 - mean(PC1)) > (3 * sd(PC1)))),
+      outliers_PC2 = list(which(abs(PC2 - mean(PC2)) > (3 * sd(PC2))))
+    )
+}
+
+find_group_outliers(pca_data)
+
+plot(atac_pca)
+
+```
+
+**Supplementary Figure 1c) PCA on genome-wide chromatin accessibility across the *APOE* isoforms and the *APOE*-KO. PCA was generated using the variance stabilizing transformation (VST)-normalised expression counts matrix.**
+
+```{r supp_figure_1d}
+#| fig-align: center
+# Sample clustering 
+atac_cluster <- plot_sample_clustering(vsd, anno_vars = c("samples", "group"), distance = "euclidean")
+
+plot(atac_cluster)
+```
+
+**Supplementary Figure 1d) Hierarchical clustering using euclidean distance of VST-normalised ATAC-seq read counts of the *APOE* isoforms and the *APOE*-KO.**
+
+```{r supp_figure_1e}
+#| fig-align: center
+#| message: false 
+#| warning: false 
+#| results: hide
+
+
+peaks_annot2 <- annotatePeak(
+  makeGRangesFromDataFrame(atac_peaks[, 1:3]), 
+  TxDb = txdb, 
+  tssRegion = c(-3000, 3000), 
+  annoDb = "org.Hs.eg.db"
+)
+
+plotAnnoPie(peaks_annot2)
+
+```
+
+**Supplementary Figure 1e) Pie chart of genomic annotations of the consensus set of chromatin accessibility peaks.**
+
+```{r supp_figure_1f}
+#| eval: false 
+#| fig-align: center
+
+## TSS enrichments ## 
+peaks_gr <- as.GRanges(peaks_annot2)
+
+promoter <- getPromoters(TxDb=txdb, upstream=3000, downstream=3000)
+tagMatrix <- getTagMatrix(peaks_gr, windows=promoter)
+tagHeatmap(tagMatrix)
+
+## Average Profile of ATAC peaks binding to TSS region ## 
+tss_enrich <- plotAvgProf(tagMatrix, xlim=c(-3000, 3000),
+            xlab="Genomic Region (5' -> 3')", ylab = "Read Count Frequency")
+
+
+```
+
+![](images/tss_enrich.png)
+
+**Supplementary Figure 1f) TSS enrichment profiles of ATAC-seq peaks.**
+
+```{r supp_figure_2a}
+#| fig-align: center
+#| fig-height: 4
+#| fig-width: 5
+#| message: false 
+#| warning: false 
+#| results: hide
 
 # APOE-KO vs APOE3 
-top_genes <- head(comparisons[comparisons$comparison == "KOvsE3", ], 20)
+top_genes <- head(comparisons[comparisons$comparison == "KOvsE3", ], 10)
 
 # need to add labels for the top 20 genes
-KOvsE3_volcano <- ggplot(comparisons[comparisons$comparison=="KOvsE3",],
-                         aes(x=log2FoldChange,y=-log10(fdr), colour=diffExpressed)) +
-  geom_point(size=1.5) + 
-  xlim(-10,10) + 
-  scale_colour_manual(values=c("#4D6D93FF", "#4D6D93FF", "#9DAFC3FF")) + 
-  theme_classic() + 
-  ylab("-log10(FDR)") + 
-  guides(colour=guide_legend(title="")) + 
-  theme(text = element_text(size=16), plot.title = element_text(hjust = 0.5)) + 
-  ggtitle("KOvsE3") + 
-  geom_text_repel(data = top_genes, aes(label = hgnc_symbol), box.padding = 0.5, colour="#2A3C50FF",
-                  size=4)
+KOvsE3_volcano <- ggplot(comparisons[comparisons$comparison=="KOvsE3",], aes(x=log2FoldChange, y=-log10(fdr), colour=diffExpressed)) + geom_point(size=1.5) + xlim(-10,10) + scale_colour_manual(values=c("#4D6D93FF", "#4D6D93FF", "#9DAFC3FF")) + theme_classic() + ylab("-log10(FDR)") + guides(colour=guide_legend(title="")) + theme(text = element_text(size=16), plot.title = element_text(hjust = 0.5)) + ggtitle("KOvsE3") + geom_text_repel(data = top_genes, aes(label = hgnc_symbol), box.padding = 0.5, colour="#2A3C50FF", size=4)
+
+plot(KOvsE3_volcano)
+```
+
+**Supplementary Figure 2a) Differentially expressed genes in the *APOE*-KO vs *APOE3*.**
+
+```{r supp_figure_2b}
+#| fig-align: center
+#| fig-height: 4
+#| fig-width: 5
+#| warning: false 
+#| message: false 
+#| results: gide 
 
 # APOE-KO vs APOE3 excluding APOE 
 top_genes <- head(comparisons[comparisons$comparison == "KOvsE3", ], 21)
 top_genes <- subset(top_genes, hgnc_symbol != "APOE")
 
-KOvsE3_exc_apoe_volcano <- ggplot(comparisons[comparisons$comparison=="KOvsE3",],
-                                  aes(x=log2FoldChange, y=-log10(fdr), colour=diffExpressed)) +
-  geom_point(size=1.5) + 
-  xlim(-10,10) + 
-  scale_colour_manual(values=c("#4D6D93FF", "#4D6D93FF", "#9DAFC3FF")) + 
-  theme_classic() + 
-  ylab("-log10(FDR)") + 
-  guides(colour=guide_legend(title="")) + 
-  theme(text = element_text(size=16), plot.title = element_text(hjust = 0.5)) + 
-  ggtitle("KOvsE3 (excluding APOE)") + 
-  geom_text_repel(data = top_genes, aes(label = hgnc_symbol), box.padding = 0.5, colour="#2A3C50FF",
-                  size=4) + ylim(0,50)
+KOvsE3_exc_apoe_volcano <- ggplot(comparisons[comparisons$comparison=="KOvsE3",], aes(x=log2FoldChange, y=-log10(fdr), colour=diffExpressed)) + geom_point(size=1.5) + xlim(-10,10) + scale_colour_manual(values=c("#4D6D93FF", "#4D6D93FF", "#9DAFC3FF")) + theme_classic() + ylab("-log10(FDR)") + guides(colour=guide_legend(title="")) + theme(text = element_text(size=16), plot.title = element_text(hjust = 0.5)) + ggtitle("KOvsE3 (excluding APOE)") + geom_text_repel(data = top_genes, aes(label = hgnc_symbol), box.padding = 0.5, colour="#2A3C50FF", size=4) + ylim(0,50)
 
+plot(KOvsE3_exc_apoe_volcano)
 ```
 
-```{r supplementary_figure2}
+**Supplementary Figure 2b) Differentially expressed genes in the *APOE*-KO vs *APOE3* (excluding *APOE*).**
+
+```{r supp_figure_3a}
+#| warning: false
+#| message: false
+#| fig-align: center
+#| fig-height: 11
+#| fig-width: 6
+
 ## B: E4vsE2 DAR heatmap with RNA-seq genes ## 
 mat  <- E4vsE2_counts
 rownames(mat) <- E4vsE2_atac_genes$SYMBOL
@@ -1495,7 +1988,13 @@ E4vsE2_pheatmap <- pheatmap(mat,  color = colorRampPalette(rev(brewer.pal(n = 7,
 cols=mat_df[E4vsE2_pheatmap$tree_row$order,]$label_colour
 E4vsE2_pheatmap$gtable$grobs[[5]]$gp=gpar(col=cols, fontsize = 12)
 E4vsE2_pheatmap
+```
 
+**Supplementary Figure 2a) Heatmap showing differential accessibility of significant peaks (FDR \< 0.05) when comparing APOE4 vs APOE3-expressing microglia. Shown are the genes annotated to the top 20 peaks, genes marked in bold were also significantly differentially expressed in the RNA-seq analysis.**
+
+```{r supp_figure_3b}
+#| warning: false
+#| message: false
 
 ## B: KOvsE3 DAR heatmap with RNA-seq genes ## 
 mat  <- KOvsE3_counts
@@ -1540,28 +2039,31 @@ KOvsE3_pheatmap
 
 ```
 
-```{r supplementary_figure3}
-# corelate with ATAC-seq data
-E2vsE3_promoter_peaks <- read.csv("/Volumes/cm1118/projects/chimericmice/live/chimeric_mice/ATACseq/fastq/2021-02-17/HKNNVBBXY/IGFQ001124_hu_8-2-2021_ATACseq/data/sep2023/E2vsE3_promoter_peaks.csv")
-E4vsE3_promoter_peaks <- read.csv("/Volumes/cm1118/projects/chimericmice/live/chimeric_mice/ATACseq/fastq/2021-02-17/HKNNVBBXY/IGFQ001124_hu_8-2-2021_ATACseq/data/sep2023/E4vsE3_promoter_peaks.csv")
-E4vsE2_promoter_peaks <- read.csv("/Volumes/cm1118/projects/chimericmice/live/chimeric_mice/ATACseq/fastq/2021-02-17/HKNNVBBXY/IGFQ001124_hu_8-2-2021_ATACseq/data/sep2023/E4vsE2_promoter_peaks.csv")
-KOvsE3_promoter_peaks <- read.csv("/Volumes/cm1118/projects/chimericmice/live/chimeric_mice/ATACseq/fastq/2021-02-17/HKNNVBBXY/IGFQ001124_hu_8-2-2021_ATACseq/data/sep2023/KOvsE3_promoter_peaks.csv")
+**Supplementary Figure 2b) Heatmap showing differential accessibility of significant peaks (FDR \< 0.05) when comparing the APOE-KO vs APOE3. Shown are the genes annotated to the top 20 peaks, genes marked in bold were also significantly differentially expressed in the RNA-seq analysis.**
 
-# get fold change values 
-E2vsE3_atac_log2FoldChange <- E2vsE3_promoter_peaks[,c("log2FoldChange", "geneId")]
-E4vsE3_atac_log2FoldChange <- E4vsE3_promoter_peaks[,c("log2FoldChange", "geneId")]
-E4vsE2_atac_log2FoldChange <- E4vsE2_promoter_peaks[,c("log2FoldChange", "geneId")]
-KOvsE3_atac_log2FoldChange <- KOvsE3_promoter_peaks[,c("log2FoldChange", "geneId")]
+```{r supp_figure_4a}
+#| fig-align: center
+#| fig-height: 5
+#| fig-width: 5
+#| warning: false 
+#| message: false 
+#| results: hide 
 
-# E2vsE3 
-E2vsE3_atac_log2FoldChange <- E2vsE3_atac_log2FoldChange %>%
+# corelate with ATAC-seq promoter peaks
+promoter_peaks <- read.csv("data/APOE_microglia_ATACseq_promoter_peaks.csv")
+
+# get median logFC for each comparison
+get_median_logfc <- function(peaks, comparison) {
+  peaks %>%
+  filter(comparison == comparison) %>%
   group_by(geneId) %>%
   dplyr::summarise(median_log2FoldChange = median(log2FoldChange, na.rm = TRUE))
+}
 
-E2vsE3_cor <- merge(E2vsE3_rna_sig, E2vsE3_atac_log2FoldChange, by.x="entrezgene_id", by.y="geneId")
+# E2vsE3 
+E2vsE3_atac_logFC <- get_median_logfc(promoter_peaks, "E2vsE3")
 
-E2vsE3_cor_res <- cor.test(E2vsE3_cor$log2FoldChange, E2vsE3_cor$median_log2FoldChange, 
-                           method = "pearson")
+E2vsE3_cor <- merge(E2vsE3_rna_sig, E2vsE3_atac_logFC, by.x="entrezgene_id", by.y="geneId")
 
 ggplot(E2vsE3_cor, aes(x = log2FoldChange, y = median_log2FoldChange)) +
   geom_point(colour="#92BBD9FF", size=1) +
@@ -1572,15 +2074,22 @@ ggplot(E2vsE3_cor, aes(x = log2FoldChange, y = median_log2FoldChange)) +
        y = "Accessibility logFC") + 
   stat_cor(size=4) + xlim(-8,8) + ylim(-8,8) + 
   theme(text = element_text(size=16))
+```
 
-ggsave("E2vsE3_expression_vs_accessibility_logFC.pdf", height=4, width = 5)
+**Supplementary Figure 4a) RNA-seq logFC and ATAC-seq logFC correlate across DEGs and their promoter peaks in APOE2 vs APOE3-expressing microglia.**
+
+```{r supp_figure_4b}
+#| fig-align: center
+#| fig-height: 5
+#| fig-width: 5
+#| warning: false 
+#| message: false 
+#| results: hide 
 
 # E4vsE2 
-E4vsE2_atac_log2FoldChange <- E4vsE2_atac_log2FoldChange %>%
-  group_by(geneId) %>%
-  dplyr::summarise(median_log2FoldChange = median(log2FoldChange, na.rm = TRUE))
+E4vsE2_atac_logFC <- get_median_logfc(promoter_peaks, "E4vsE2")
 
-E4vsE2_cor <- merge(E4vsE2_rna_sig, E4vsE2_atac_log2FoldChange, by.x="entrezgene_id", by.y="geneId")
+E4vsE2_cor <- merge(E4vsE2_rna_sig, E4vsE2_atac_logFC, by.x="entrezgene_id", by.y="geneId")
 
 E4vsE2_cor_res <- cor.test(E4vsE2_cor$log2FoldChange, E4vsE2_cor$median_log2FoldChange, 
                            method = "pearson")
@@ -1594,15 +2103,22 @@ ggplot(E4vsE2_cor, aes(x = log2FoldChange, y = median_log2FoldChange)) +
        y = "Accessibility logFC") + 
   stat_cor(size=4) + xlim(-8,8) + ylim(-8,8) + 
   theme(text = element_text(size=16))
+```
 
-ggsave("E4vsE2_expression_vs_accessibility_logFC.pdf", height=4, width = 5)
+**Supplementary Figure 4b) RNA-seq logFC and ATAC-seq logFC correlate across DEGs and their promoter peaks in *APOE4* vs *APOE2*-expressing microglia.**
+
+```{r supp_figure_4c}
+#| fig-align: center
+#| fig-height: 5
+#| fig-width: 5
+#| message: false
+#| warning: false
+#| results: hide 
 
 # E4vsE3 
-E4vsE3_atac_log2FoldChange <- E4vsE3_atac_log2FoldChange %>%
-  group_by(geneId) %>%
-  dplyr::summarise(median_log2FoldChange = median(log2FoldChange, na.rm = TRUE))
+E4vsE3_atac_logFC <- get_median_logfc(promoter_peaks, "E4vsE3")
 
-E4vsE3_cor <- merge(E4vsE3_rna_sig, E4vsE3_atac_log2FoldChange, by.x="entrezgene_id", by.y="geneId")
+E4vsE3_cor <- merge(E4vsE3_rna_sig, E4vsE3_atac_logFC, by.x="entrezgene_id", by.y="geneId")
 
 E4vsE3_cor_res <- cor.test(E4vsE3_cor$log2FoldChange, E4vsE3_cor$median_log2FoldChange, 
                            method = "pearson")
@@ -1616,15 +2132,22 @@ ggplot(E4vsE3_cor, aes(x = log2FoldChange, y = median_log2FoldChange)) +
        y = "Accessibility logFC") + 
   stat_cor(size=4) + xlim(-8,8) + ylim(-8,8) + 
   theme(text = element_text(size=16))
+```
 
-ggsave("E4vsE3_expression_vs_accessibility_logFC.pdf", height=4, width = 5)
+**Supplementary Figure 3c) RNA-seq logFC and ATAC-seq logFC correlate across DEGs and their promoter peaks in APOE4 vs APOE3-expressing microglia.**
+
+```{r supp_figure_4d}
+#| fig-align: center
+#| fig-height: 5
+#| fig-width: 5
+#| message: false 
+#| warning: false 
+#| results: hide
 
 # KOvsE3 
-KOvsE3_atac_log2FoldChange <- KOvsE3_atac_log2FoldChange %>%
-  group_by(geneId) %>%
-  dplyr::summarise(median_log2FoldChange = median(log2FoldChange, na.rm = TRUE))
+KOvsE3_atac_logFC <- get_median_logfc(promoter_peaks, "KOvsE3")
 
-KOvsE3_cor <- merge(KOvsE3_rna_sig, KOvsE3_atac_log2FoldChange, by.x="entrezgene_id", by.y="geneId")
+KOvsE3_cor <- merge(KOvsE3_rna_sig, KOvsE3_atac_logFC, by.x="entrezgene_id", by.y="geneId")
 
 KOvsE3_cor_res <- cor.test(KOvsE3_cor$log2FoldChange, KOvsE3_cor$median_log2FoldChange, 
                            method = "pearson")
@@ -1638,11 +2161,6 @@ ggplot(KOvsE3_cor, aes(x = log2FoldChange, y = median_log2FoldChange)) +
        y = "Accessibility logFC") + 
   stat_cor(size=4) + xlim(-8,8) + ylim(-8,8) + 
   theme(text = element_text(size=16))
-
-ggsave("KOvsE3_expression_vs_accessibility_logFC.pdf", height=4, width = 5)
-
 ```
 
-```{r supplementary_figure4}
-
-```
+**Supplementary Figure 3d) RNA-seq logFC and ATAC-seq logFC correlate across DEGs and their promoter peaks in the *APOE*-KO vs *APOE2*-expressing microglia.**

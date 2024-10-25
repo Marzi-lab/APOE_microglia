@@ -1727,7 +1727,7 @@ ggplot(il10r, aes(x=group, y=count, fill=group)) +
                     
 ```
 
-```{}
+```         
 ```
 
 **Figure 6c) Boxplot of gene expression profiles of *IL-10RA*.**
@@ -1901,7 +1901,7 @@ tss_enrich <- plotAvgProf(tagMatrix, xlim=c(-3000, 3000),
 
 **Supplementary Figure 1f) TSS enrichment profiles of ATAC-seq peaks.**
 
-```{r supp_figure_2a}
+```{r supp_figure_3a}
 #| fig-align: center
 #| fig-height: 4
 #| fig-width: 5
@@ -1918,15 +1918,15 @@ KOvsE3_volcano <- ggplot(comparisons[comparisons$comparison=="KOvsE3",], aes(x=l
 plot(KOvsE3_volcano)
 ```
 
-**Supplementary Figure 2a) Differentially expressed genes in the *APOE*-KO vs *APOE3*.**
+**Supplementary Figure 3a) Differentially expressed genes in the *APOE*-KO vs *APOE3*.**
 
-```{r supp_figure_2b}
+```{r supp_figure_3b}
 #| fig-align: center
 #| fig-height: 4
 #| fig-width: 5
 #| warning: false 
 #| message: false 
-#| results: gide 
+#| results: hide 
 
 # APOE-KO vs APOE3 excluding APOE 
 top_genes <- head(comparisons[comparisons$comparison == "KOvsE3", ], 21)
@@ -1937,9 +1937,9 @@ KOvsE3_exc_apoe_volcano <- ggplot(comparisons[comparisons$comparison=="KOvsE3",]
 plot(KOvsE3_exc_apoe_volcano)
 ```
 
-**Supplementary Figure 2b) Differentially expressed genes in the *APOE*-KO vs *APOE3* (excluding *APOE*).**
+**Supplementary Figure 3b) Differentially expressed genes in the *APOE*-KO vs *APOE3* (excluding *APOE*).**
 
-```{r supp_figure_3a}
+```{r supp_figure_4a}
 #| warning: false
 #| message: false
 #| fig-align: center
@@ -1990,9 +1990,9 @@ E4vsE2_pheatmap$gtable$grobs[[5]]$gp=gpar(col=cols, fontsize = 12)
 E4vsE2_pheatmap
 ```
 
-**Supplementary Figure 2a) Heatmap showing differential accessibility of significant peaks (FDR \< 0.05) when comparing APOE4 vs APOE3-expressing microglia. Shown are the genes annotated to the top 20 peaks, genes marked in bold were also significantly differentially expressed in the RNA-seq analysis.**
+**Supplementary Figure 4a) Heatmap showing differential accessibility of significant peaks (FDR \< 0.05) when comparing APOE4 vs APOE3-expressing microglia. Shown are the genes annotated to the top 20 peaks, genes marked in bold were also significantly differentially expressed in the RNA-seq analysis.**
 
-```{r supp_figure_3b}
+```{r supp_figure_4b}
 #| warning: false
 #| message: false
 
@@ -2039,9 +2039,47 @@ KOvsE3_pheatmap
 
 ```
 
-**Supplementary Figure 2b) Heatmap showing differential accessibility of significant peaks (FDR \< 0.05) when comparing the APOE-KO vs APOE3. Shown are the genes annotated to the top 20 peaks, genes marked in bold were also significantly differentially expressed in the RNA-seq analysis.**
+**Supplementary Figure 4b) Heatmap showing differential accessibility of significant peaks (FDR \< 0.05) when comparing the APOE-KO vs APOE3. Shown are the genes annotated to the top 20 peaks, genes marked in bold were also significantly differentially expressed in the RNA-seq analysis.**
 
-```{r supp_figure_4a}
+```{r supplementary_figure5}
+# Combine RNA-seq and ATAC-seq gene data frames
+rna_atac_genes <- rbind(atac_genes, rna_genes)
+rna_atac_genes$direction <- gsub("Upregulated", "Up", rna_atac_genes$direction)
+rna_atac_genes$direction <- gsub("Downregulated", "Down", rna_atac_genes$direction)
+
+# Summarise gene counts
+gene_counts <- rna_atac_genes %>%
+  filter(gene != "") %>%
+  group_by(contrast, assay) %>%
+  dplyr::summarise(count = n(), .groups = 'drop')
+
+# Count the number of overlapping genes
+overlap_counts <- rna_atac_genes %>%
+  filter(gene != "") %>%
+  group_by(contrast, gene) %>%
+  dplyr::summarise(count = n(), .groups = 'drop') %>%
+  filter(count > 1) %>%
+  group_by(contrast) %>%
+  dplyr::summarise(overlap_count = n(), .groups = 'drop')
+
+# Merge gene counts with overlap counts
+gene_counts <- dplyr::left_join(gene_counts, overlap_counts, by = "contrast")
+
+# Plot the results
+ggplot(gene_counts[gene_counts$assay == "ATAC-seq", ], aes(x = contrast, y = count, fill = assay)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_bar(aes(y = overlap_count, fill = "Overlap"), stat = "identity", position = "dodge") +
+  geom_text(aes(label = paste(overlap_count, "/", count)), position = position_dodge(width = 0.9), vjust = -0.5, size = 4.5) +
+  labs(x = "", y = "Number of DARs", fill = "Assay") +
+  ylim(0, 80) +
+  scale_fill_manual(values = ghibli_palette("MarnieLight2", direction = -1), labels = c('ATAC only', 'ATAC and RNA'), name = "") +
+  theme_bw() +
+  theme(legend.text = element_text(size = 14), text = element_text(size = 14))
+```
+
+**Supplementary Figure 5: Stacked barplot of the number of differentially accessible regions (DARs) and how many of these overlap with the DEGs based on peak-to-gene annotation.**
+
+```{r supp_figure_6a}
 #| fig-align: center
 #| fig-height: 5
 #| fig-width: 5
@@ -2076,9 +2114,9 @@ ggplot(E2vsE3_cor, aes(x = log2FoldChange, y = median_log2FoldChange)) +
   theme(text = element_text(size=16))
 ```
 
-**Supplementary Figure 4a) RNA-seq logFC and ATAC-seq logFC correlate across DEGs and their promoter peaks in APOE2 vs APOE3-expressing microglia.**
+**Supplementary Figure 6a) RNA-seq logFC and ATAC-seq logFC correlate across DEGs and their promoter peaks in APOE2 vs APOE3-expressing microglia.**
 
-```{r supp_figure_4b}
+```{r supp_figure_6b}
 #| fig-align: center
 #| fig-height: 5
 #| fig-width: 5
@@ -2105,9 +2143,9 @@ ggplot(E4vsE2_cor, aes(x = log2FoldChange, y = median_log2FoldChange)) +
   theme(text = element_text(size=16))
 ```
 
-**Supplementary Figure 4b) RNA-seq logFC and ATAC-seq logFC correlate across DEGs and their promoter peaks in *APOE4* vs *APOE2*-expressing microglia.**
+**Supplementary Figure 6b) RNA-seq logFC and ATAC-seq logFC correlate across DEGs and their promoter peaks in *APOE4* vs *APOE2*-expressing microglia.**
 
-```{r supp_figure_4c}
+```{r supp_figure_6c}
 #| fig-align: center
 #| fig-height: 5
 #| fig-width: 5
@@ -2122,7 +2160,6 @@ E4vsE3_cor <- merge(E4vsE3_rna_sig, E4vsE3_atac_logFC, by.x="entrezgene_id", by.
 
 E4vsE3_cor_res <- cor.test(E4vsE3_cor$log2FoldChange, E4vsE3_cor$median_log2FoldChange, 
                            method = "pearson")
-
 ggplot(E4vsE3_cor, aes(x = log2FoldChange, y = median_log2FoldChange)) +
   geom_point(colour="#DCCA2CFF", size=1) +
   geom_smooth(method = "lm", se = FALSE, colour="#DCCA2CFF", alpha=0.1) +  # Add a linear regression line
@@ -2134,9 +2171,9 @@ ggplot(E4vsE3_cor, aes(x = log2FoldChange, y = median_log2FoldChange)) +
   theme(text = element_text(size=16))
 ```
 
-**Supplementary Figure 3c) RNA-seq logFC and ATAC-seq logFC correlate across DEGs and their promoter peaks in APOE4 vs APOE3-expressing microglia.**
+**Supplementary Figure 6c) RNA-seq logFC and ATAC-seq logFC correlate across DEGs and their promoter peaks in APOE4 vs APOE3-expressing microglia.**
 
-```{r supp_figure_4d}
+```{r supp_figure_6d}
 #| fig-align: center
 #| fig-height: 5
 #| fig-width: 5
@@ -2163,4 +2200,4 @@ ggplot(KOvsE3_cor, aes(x = log2FoldChange, y = median_log2FoldChange)) +
   theme(text = element_text(size=16))
 ```
 
-**Supplementary Figure 3d) RNA-seq logFC and ATAC-seq logFC correlate across DEGs and their promoter peaks in the *APOE*-KO vs *APOE2*-expressing microglia.**
+**Supplementary Figure 6d) RNA-seq logFC and ATAC-seq logFC correlate across DEGs and their promoter peaks in the *APOE*-KO vs *APOE2*-expressing microglia.**
